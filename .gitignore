@@ -1,0 +1,6 @@
+202*/*
+.ruby-version
+Gemfile.lock
+*.csv
+*.png
+vendor/*
