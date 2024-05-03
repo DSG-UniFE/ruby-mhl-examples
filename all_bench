@@ -36,7 +36,7 @@ def create_log(method, tofile: false)
     logger
   else 
     logger = Logger.new(STDOUT)
-    logger.level = Logger::INFO
+    logger.level = Logger::ERROR
     logger
   end
 end  
@@ -48,6 +48,11 @@ rastrigin = lambda do |x|
     ret += xi ** 2 - 10 * Math::cos(2* Math::PI * xi)
   end
   -ret
+end
+
+# GWO: Change the sign to minimize
+rastrigin_gwo = lambda do |x|
+  -rastrigin.call(x)
 end
 
 puts "--- Rastrigin Funcion Benchmark ---"
@@ -88,14 +93,14 @@ bests_ga = nil
   t_bench = Time.now - start
   ga_times << t_bench
 
-  puts "GA: Population Size: 128, Iteration #{iteration}\n\t Best: #{best[:fitness]}, Time: #{t_bench}"
-  puts "#{best[:genotype]}"
+  #puts "GA: Population Size: 128, Iteration #{iteration}\n\t Best: #{best[:fitness]}, Time: #{t_bench}"
+  #puts "#{best[:genotype]}"
   ga_bests << best[:fitness]
 
   bests_ga = solver.best_positions
 end 
 
-# For GWO 
+# GWO -- Optimization
  
 logger = create_log("gwo")
 solver_conf = {
@@ -117,13 +122,13 @@ solver = MHL::GreyWolfSolver.new(solver_conf)
 bests_gwo = nil
 30.times do |i|
   start = Time.now
-  best = solver.solve(rastrigin, {concurrent: false})
+  best = solver.solve(rastrigin_gwo, {concurrent: false})
   t_bench = Time.now - start
   gwo_times << t_bench
-  warn "Best: #{best}"
-  puts "GWO: Iteration #{iteration}\n\t Best: #{best[:height]}, Time: #{t_bench}"
-  puts "#{best[:position]}"
-  gwo_bests << best[:height]
+  #warn "Best: #{best}"
+  #puts "GWO: Iteration #{iteration}\n\t Best: #{best[:height]}, Time: #{t_bench}"
+  #puts "#{best[:position]}"
+  gwo_bests << best[:fitness]
   bests_gwo = solver.best_positions
 end
 
@@ -151,7 +156,7 @@ bests_qpso = nil
   best = solver.solve(rastrigin, {concurrent: false})
   t_bench = Time.now - start
   qpso_times << t_bench
-  puts "QPSO: Swarm_size: 40, Iteration #{iteration}\n\t Best: #{best[:height]}, Time: #{t_bench}"
+  #puts "QPSO: Swarm_size: 40, Iteration #{iteration}\n\t Best: #{best[:height]}, Time: #{t_bench}"
   puts "#{best[:position]}"
   qpso_bests << best[:height]
   bests_qpso = solver.best_positions
@@ -183,19 +188,19 @@ bests_mpso = nil
   best = solver.solve(rastrigin, {concurrent: false})
   t_bench = Time.now - start
 
-  puts "MPSO: Swarm_size: 50, N_Swarms: 4, Iteration #{iteration}\n\t Best: #{best[:height]}, Time: #{t_bench}"
-  puts "#{best[:position]}"
+  #puts "MPSO: Swarm_size: 50, N_Swarms: 4, Iteration #{iteration}\n\t Best: #{best[:height]}, Time: #{t_bench}"
+  #puts "#{best[:position]}"
   bests_mpso = solver.best_positions
   mpso_times << t_bench
   mpso_bests << best[:height]
 end
 
-
+print"\n\n"
 X_LIMIT = 50
 plot = UnicodePlot.lineplot(bests_ga.first(X_LIMIT), name: "GA", title: "Rastrigin Benchmark", width: 50, height: 20, xlabel: 'Iterations', ylabel: 'f(x)')
 UnicodePlot.lineplot!(plot, bests_qpso.first(X_LIMIT), name: "QPSO")
 UnicodePlot.lineplot!(plot, bests_mpso.first(X_LIMIT), name: "MPSO")
-
+UnicodePlot.lineplot!(plot, bests_gwo.first(X_LIMIT), name: "GWO")
 plot.render
 
 puts "30 executions results"
@@ -204,5 +209,5 @@ puts "30 executions results"
 puts "GA mean: #{mean(ga_bests)} std_dev: #{std_dev(ga_bests)} mean time: #{mean(ga_times)} std_dev time: #{std_dev(ga_times)}"
 puts "QPSO mean: #{mean(qpso_bests)} std_dev: #{std_dev(qpso_bests)} mean time: #{mean(qpso_times)} std_dev time: #{std_dev(qpso_times)}"
 puts "MPSO mean: #{mean(mpso_bests)} std_dev: #{std_dev(mpso_bests)} mean time: #{mean(mpso_times)} std_dev time: #{std_dev(mpso_times)}"
-
+puts "GWO mean: #{mean(gwo_bests)} std_dev: #{std_dev(gwo_bests)} mean time: #{mean(gwo_times)} std_dev time: #{std_dev(gwo_times)}"
 exit 0
