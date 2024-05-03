@@ -1,6 +1,9 @@
 202*/*
 .ruby-version
 Gemfile.lock
+*.DS_Store
+*.log
+.bundle/*
 *.csv
 *.png
 vendor/*
