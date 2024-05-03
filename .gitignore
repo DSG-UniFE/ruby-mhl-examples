@@ -6,4 +6,5 @@ Gemfile.lock
 .bundle/*
 *.csv
 *.png
+*.txt
 vendor/*
