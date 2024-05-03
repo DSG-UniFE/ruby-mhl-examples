@@ -1,0 +1,102 @@
+#!/usr/bin/env ruby
+
+begin
+  require 'forwardable'
+  require 'mhl'
+  require 'mhl/rechenberg_controller'
+  require 'unicode_plot'
+  require 'logger'
+rescue LoadError
+  require 'rubygems'
+  require 'mhl'
+  require 'logger'
+end
+
+TIME = Time.now.strftime('%Y%m%d%H%M%S')
+RESULTDIR = "#{TIME}_results"
+
+# create an output directory if it does not exist
+def create_log(method) 
+  Dir.mkdir(RESULTDIR) unless File.exist?(RESULTDIR)
+  log = "#{RESULTDIR}/#{method}_#{TIME}.log"
+  File.delete(log) if File.exist?(log)
+  logger = Logger.new(log)
+  logger.level = Logger::DEBUG
+  logger
+end  
+
+rastrigin = lambda do |x|
+  d = x.length
+  ret = 10 * d
+  x.each do |xi|
+    ret += xi ** 2 - 10 * Math::cos(2* Math::PI * xi)
+  end
+  -ret
+end
+
+puts "--- Rastrigin Funcion Benchmark ---"
+puts "--- n=2 xi in [-5.12, 5.12] ---"
+
+
+logger = create_log("ga")
+iteration = 500 #100
+
+solver_conf = {
+    population_size: 128,
+    genotype_space_type: :real, #binary o bitstrings (github)
+    mutation_probability: 0.4,
+    #controller: MHL::RechenbergController.new,
+    recombination_probability: 0.5,
+    recombination_threshold: 0.40,
+    genotype_space_conf: {
+        dimensions: 2,
+        recombination_type: :intermediate,
+        random_func: lambda { Array.new(2) { rand(-5.12..5.12) } }, #array casuale con valori tra 0 e 1
+        constraints: Array.new(2){{from: -5.12, to: 5.12}}
+    },
+  exit_condition: lambda {|gen, best| gen >= iteration  },
+  logger: logger,
+  log_level: :info
+}
+
+solver = MHL::GeneticAlgorithmSolver.new(solver_conf)
+warn "mutation_probability #{solver.mutation_probability}"
+
+ga_times = []
+ga_bests = []
+
+bests_ga = nil
+30.times do |i|
+  start = Time.now
+  
+  best = solver.solve(rastrigin, {concurrent: false})
+  t_bench = Time.now - start
+  ga_times << t_bench
+
+  puts "GA: Population Size: 128, Iteration #{iteration}\n\t Best: #{best[:fitness]}, Time: #{t_bench}"
+  puts "#{best[:genotype]}"
+  ga_bests << best[:fitness]
+
+  bests_ga = solver.best_positions
+end 
+
+
+X_LIMIT = 50
+plot = UnicodePlot.lineplot(bests_ga.first(X_LIMIT), name: "GA", title: "Rastrigin Benchmark", width: 50, height: 20, xlabel: 'Iterations', ylabel: 'f(x)')
+
+plot.render
+
+puts "30 executions results"
+
+def mean(array)
+  array.inject(0.0) { |sum, el| sum + el } / array.size
+end
+
+def std_dev(array)
+  m = mean(array)
+  variance = array.inject(0.0) { |variance, x| variance + (x - m) ** 2 }
+  Math.sqrt(variance / array.size)
+end
+
+puts "GA mean: #{mean(ga_bests)} std_dev: #{std_dev(ga_bests)} mean time: #{mean(ga_times)} std_dev time: #{std_dev(ga_times)}"
+exit 0

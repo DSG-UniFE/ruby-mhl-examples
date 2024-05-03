@@ -1,0 +1,96 @@
+#!/usr/bin/env ruby
+
+begin
+  require 'forwardable'
+  require 'mhl'
+  require 'unicode_plot'
+  require 'logger'
+rescue LoadError
+  require 'rubygems'
+  require 'mhl'
+  require 'logger'
+end
+
+TIME = Time.now.strftime('%Y%m%d%H%M%S')
+RESULTDIR = "#{TIME}_results"
+
+# create an output directory if it does not exist
+def create_log(method, tofile: false)
+  if tofile
+    Dir.mkdir(RESULTDIR) unless File.exist?(RESULTDIR)
+    log = "#{RESULTDIR}/#{method}_#{TIME}.log"
+    File.delete(log) if File.exist?(log)
+    logger = Logger.new(log)
+    logger.level = Logger::DEBUG
+    logger
+  else
+    logger = Logger.new(STDOUT)
+    logger.level = Logger::INFO
+    logger
+  end
+end  
+
+def mean(array)
+  array.inject(0.0) { |sum, el| sum + el } / array.size
+end
+
+def std_dev(array)
+  m = mean(array)
+  variance = array.inject(0.0) { |variance, x| variance + (x - m) ** 2 }
+  Math.sqrt(variance / array.size)
+end
+
+
+rastrigin = lambda do |x|
+  d = x.length
+  ret = 10 * d
+  x.each do |xi|
+    ret += xi ** 2 - 10 * Math::cos(2* Math::PI * xi)
+  end
+  -ret
+end
+
+puts "--- Rastrigin Funcion Benchmark ---"
+puts "--- n=2 xi in [-5.12, 5.12] ---"
+
+
+logger = create_log("mpso")
+
+iteration = 200
+
+5.upto(50) do |s_size|
+
+solver_conf = {
+  num_swarms: 4,
+  swarm_size: s_size,
+  logger: logger,
+  constraints: {
+    min: [-5.12,-5.12],
+    max: [5.12, 5.12],
+  },
+  exit_condition: lambda {|gen, best| gen >= iteration  },
+  log_level: :info
+}
+
+solver = MHL::MultiSwarmQPSOSolver.new(solver_conf)
+
+mpso_times = []
+mpso_bests = []
+bests_mpso = nil
+
+
+30.times do |i|
+  start = Time.now
+  best = solver.solve(rastrigin, {concurrent: false})
+  t_bench = Time.now - start
+  #puts "#{best[:position]}"
+  bests_mpso = solver.best_positions
+  mpso_times << t_bench
+  mpso_bests << best[:height]
+end
+
+
+puts "MPSO mean: #{mean(mpso_bests)} std_dev: #{std_dev(mpso_bests)} mean time: #{mean(mpso_times)} std_dev time: #{std_dev(mpso_times)} swarm_size: #{s_size}"
+
+end
+
